@@ -127,6 +127,21 @@ export function passingDirectionForHand(handNumber: number): PassDirection {
   return order[(handNumber - 1) % 4];
 }
 
+/** Seat index a card passes to from `seatIndex`, given the round's direction. Seats run clockwise, you at 0. */
+export function passRecipientSeat(seatIndex: number, direction: PassDirection): number {
+  switch (direction) {
+    case 'left':
+      return (seatIndex + 1) % 4;
+    case 'right':
+      return (seatIndex + 3) % 4;
+    case 'across':
+      return (seatIndex + 2) % 4;
+    case 'hold':
+    default:
+      return seatIndex;
+  }
+}
+
 export function nextHandNumber(game: Game): number {
   return game.hands.length + 1;
 }

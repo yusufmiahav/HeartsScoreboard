@@ -6,7 +6,7 @@ import { Button } from '@/components/ui';
 import { LiveGameCard, PausedGameCard, FinishedGameRow } from '@/components/GameCards';
 
 export default function GamesPage() {
-  const { state, resumeGame } = useStore();
+  const { state, resumeGame, deleteGame, setDraftGameSetup } = useStore();
   const router = useRouter();
   const games = state.games;
   const live = games.filter((g) => g.status === 'live');
@@ -25,10 +25,16 @@ export default function GamesPage() {
           <LiveGameCard key={g.id} game={g} />
         ))}
         {paused.map((g) => (
-          <PausedGameCard key={g.id} game={g} onResume={resumeGame} />
+          <PausedGameCard key={g.id} game={g} onResume={resumeGame} onDelete={deleteGame} />
         ))}
 
-        <Button variant="dashed" onClick={() => router.push('/games/new')}>
+        <Button
+          variant="dashed"
+          onClick={() => {
+            setDraftGameSetup(null);
+            router.push('/games/new');
+          }}
+        >
           ＋ New game
         </Button>
 

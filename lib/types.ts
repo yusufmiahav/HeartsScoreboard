@@ -70,8 +70,14 @@ export interface Game {
   celebrationSeen: boolean;
 }
 
+export interface DraftGameSetup {
+  settings: GameSettings;
+  playerNames: string[];
+}
+
 export interface AppState {
   user: User | null;
   knownPlayers: KnownPlayer[];
   games: Game[];
+  draftGameSetup: DraftGameSetup | null;
 }

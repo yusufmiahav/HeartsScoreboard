@@ -37,10 +37,14 @@ The core turn-1 flow end to end, with real scoring/validation logic:
 - Sign in (email + password, or guest) and auth gate
 - Home — live / paused / finished game cards
 - New game setup — players, target score, house rules (J♦, moon rule)
-- Hand start — seating ring, passing direction, dealer, lead reminder, nudge card
+- Seating — a dedicated page to reorder who sits where (relative to you, clockwise) and pick
+  the first dealer, with a live "what this means" preview, before the game is created
+- Hand start — the seating ring / left-right-across-hold view for each actual round, passing
+  direction, dealer, lead reminder, nudge card
 - Score entry — hearts steppers, Q♠/J♦ toggles, moon-shot picker, live remainder chip,
   auto-fill, undo
 - Scoreboard — standings + hand-by-hand ledger, pause/abandon
+- Home — live / paused / finished game cards, with delete for paused games
 - Game over + a simplified winner celebration
 - Stats (per-user aggregates), Settings (theme/accent/density), Rules reference
 
@@ -57,7 +61,8 @@ Scoped out of this first pass — the handoff's turns 2–6 beyond the pieces ab
 - Full pause/resume sheet with multi-device sync and half-entered-hand recovery
 - Player IDs, QR add-by-scan, friend requests, head-to-head stats
 - Dispute/challenge voting flow
-- Drag-to-seat ring and first-dealer cut/pick flow (seats are assigned in join order)
+- Drag-to-seat ring and the cut/pick first-dealer mini-game (seating page uses reorder
+  buttons + a plain dealer picker instead — same outcome, simpler interaction)
 - "Type totals" keypad/card-grid entry modes (button is present but inert)
 - Default board layout preference (race/ledger variants) and per-stat privacy controls
 - Full winner-celebration animation timing/looping (a simplified version plays instead)

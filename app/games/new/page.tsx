@@ -10,20 +10,21 @@ import type { MoonRule } from '@/lib/types';
 const PRESETS = [50, 100, 150, 200];
 
 export default function NewGamePage() {
-  const { state, createGame } = useStore();
+  const { state, setDraftGameSetup } = useStore();
   const router = useRouter();
-  const [names, setNames] = useState(['', '', '']);
-  const [target, setTarget] = useState(100);
-  const [jack, setJack] = useState(true);
-  const [moonRule, setMoonRule] = useState<MoonRule>('others26');
+  const existingDraft = state.draftGameSetup;
+  const [names, setNames] = useState(existingDraft?.playerNames ?? ['', '', '']);
+  const [target, setTarget] = useState(existingDraft?.settings.targetScore ?? 100);
+  const [jack, setJack] = useState(existingDraft?.settings.jackOfDiamonds ?? true);
+  const [moonRule, setMoonRule] = useState<MoonRule>(existingDraft?.settings.moonRule ?? 'others26');
 
   function updateName(i: number, v: string) {
     setNames((prev) => prev.map((n, idx) => (idx === i ? v : n)));
   }
 
-  function handleDeal() {
-    const game = createGame({ targetScore: target, jackOfDiamonds: jack, moonRule }, names);
-    router.push(`/games/${game.id}/start`);
+  function handleContinue() {
+    setDraftGameSetup({ settings: { targetScore: target, jackOfDiamonds: jack, moonRule }, playerNames: names });
+    router.push('/games/new/seating');
   }
 
   const filledCount = names.filter((n) => n.trim()).length;
@@ -38,7 +39,7 @@ export default function NewGamePage() {
           ))}
         </datalist>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 20 }}>
-          <PlayerRow index={1} name={state.user?.displayName ?? 'You'} note="you · deals first" locked />
+          <PlayerRow index={1} name={state.user?.displayName ?? 'You'} note="you" locked />
           {names.map((n, i) => (
             <PlayerRow
               key={i}
@@ -125,8 +126,8 @@ export default function NewGamePage() {
         </div>
       </div>
       <div className="ds-foot">
-        <Button variant="primary" onClick={handleDeal} disabled={filledCount < 3}>
-          Deal first hand
+        <Button variant="primary" onClick={handleContinue} disabled={filledCount < 3}>
+          Choose seats
         </Button>
       </div>
     </div>

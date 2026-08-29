@@ -43,7 +43,15 @@ export function LiveGameCard({ game }: { game: Game }) {
   );
 }
 
-export function PausedGameCard({ game, onResume }: { game: Game; onResume: (id: string) => void }) {
+export function PausedGameCard({
+  game,
+  onResume,
+  onDelete,
+}: {
+  game: Game;
+  onResume: (id: string) => void;
+  onDelete: (id: string) => void;
+}) {
   const router = useRouter();
   const rows = standings(game);
   const hasDraft =
@@ -108,6 +116,15 @@ export function PausedGameCard({ game, onResume }: { game: Game; onResume: (id: 
           }}
         >
           ⇄
+        </button>
+        <button
+          className="ds-icon-btn"
+          aria-label="Delete game"
+          onClick={() => {
+            if (confirm('Delete this paused game? This can\'t be undone.')) onDelete(game.id);
+          }}
+        >
+          ×
         </button>
       </div>
     </Card>

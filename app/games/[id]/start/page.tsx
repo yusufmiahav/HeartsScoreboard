@@ -3,7 +3,14 @@
 import { use } from 'react';
 import { notFound, useRouter } from 'next/navigation';
 import { useStore } from '@/lib/store';
-import { dealerSeatForHand, nextHandNumber, passingDirectionForHand, runningTotals, type PassDirection } from '@/lib/engine';
+import {
+  dealerSeatForHand,
+  nextHandNumber,
+  passingDirectionForHand,
+  passRecipientSeat,
+  runningTotals,
+  type PassDirection,
+} from '@/lib/engine';
 import { ScreenHeader } from '@/components/ScreenHeader';
 import { Button, Chip } from '@/components/ui';
 
@@ -13,20 +20,6 @@ const DIRECTIONS: { key: PassDirection; label: string }[] = [
   { key: 'across', label: 'ACROSS' },
   { key: 'hold', label: 'HOLD' },
 ];
-
-function recipientForDirection(seatIndex: number, direction: PassDirection): number {
-  switch (direction) {
-    case 'left':
-      return (seatIndex + 1) % 4;
-    case 'right':
-      return (seatIndex + 3) % 4;
-    case 'across':
-      return (seatIndex + 2) % 4;
-    case 'hold':
-    default:
-      return seatIndex;
-  }
-}
 
 export default function HandStartPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
@@ -40,7 +33,7 @@ export default function HandStartPage({ params }: { params: Promise<{ id: string
   const direction = passingDirectionForHand(handNumber);
   const dealerSeat = dealerSeatForHand(game, handNumber);
   const youIndex = 0;
-  const passTo = direction === 'hold' ? null : game.players[recipientForDirection(youIndex, direction)];
+  const passTo = direction === 'hold' ? null : game.players[passRecipientSeat(youIndex, direction)];
 
   const totals = runningTotals(game);
   const half = game.settings.targetScore / 2;

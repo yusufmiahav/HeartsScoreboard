@@ -1,7 +1,7 @@
 'use client';
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useReducer, useRef, useState } from 'react';
-import type { AppState, DraftHand, Game, GamePlayer, GameSettings, Hand, KnownPlayer, User } from './types';
+import type { AppState, DraftGameSetup, DraftHand, Game, GamePlayer, GameSettings, Hand, KnownPlayer, User } from './types';
 import { checkGameEnd, cloneDraftFromHand, emptyDraft } from './engine';
 import { makeGameCode, makePlayerId, makeUuid } from './id';
 
@@ -28,6 +28,7 @@ const initialState: AppState = {
   user: null,
   knownPlayers: [],
   games: [],
+  draftGameSetup: null,
 };
 
 type Action =
@@ -36,7 +37,9 @@ type Action =
   | { type: 'SIGN_OUT' }
   | { type: 'UPDATE_USER'; patch: Partial<User> }
   | { type: 'UPSERT_KNOWN_PLAYERS'; players: KnownPlayer[] }
+  | { type: 'SET_DRAFT_GAME_SETUP'; draft: DraftGameSetup | null }
   | { type: 'CREATE_GAME'; game: Game }
+  | { type: 'DELETE_GAME'; gameId: string }
   | { type: 'SET_FIRST_DEALER'; gameId: string; seat: number }
   | { type: 'SET_DRAFT'; gameId: string; draft: DraftHand }
   | { type: 'SAVE_HAND'; gameId: string }
@@ -50,7 +53,7 @@ type Action =
 function reducer(state: AppState, action: Action): AppState {
   switch (action.type) {
     case 'HYDRATE':
-      return action.state;
+      return { ...initialState, ...action.state };
     case 'SIGN_IN':
       return { ...state, user: action.user };
     case 'SIGN_OUT':
@@ -65,8 +68,12 @@ function reducer(state: AppState, action: Action): AppState {
       }
       return { ...state, knownPlayers: Array.from(byId.values()) };
     }
+    case 'SET_DRAFT_GAME_SETUP':
+      return { ...state, draftGameSetup: action.draft };
     case 'CREATE_GAME':
-      return { ...state, games: [action.game, ...state.games] };
+      return { ...state, games: [action.game, ...state.games], draftGameSetup: null };
+    case 'DELETE_GAME':
+      return { ...state, games: state.games.filter((g) => g.id !== action.gameId) };
     case 'SET_FIRST_DEALER':
       return {
         ...state,
@@ -158,7 +165,9 @@ interface StoreContextValue {
   signIn: (partial: { displayName: string; email?: string | null; isGuest?: boolean }) => User;
   signOut: () => void;
   updateUser: (patch: Partial<User>) => void;
-  createGame: (settings: GameSettings, otherNames: string[]) => Game;
+  setDraftGameSetup: (draft: DraftGameSetup | null) => void;
+  createGame: (settings: GameSettings, otherNames: string[], firstDealerSeat?: number) => Game;
+  deleteGame: (gameId: string) => void;
   setFirstDealer: (gameId: string, seat: number) => void;
   setDraft: (gameId: string, draft: DraftHand) => void;
   saveHand: (gameId: string) => void;
@@ -214,8 +223,13 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const signOut = useCallback(() => dispatch({ type: 'SIGN_OUT' }), []);
   const updateUser = useCallback((patch: Partial<User>) => dispatch({ type: 'UPDATE_USER', patch }), []);
 
+  const setDraftGameSetup = useCallback(
+    (draft: DraftGameSetup | null) => dispatch({ type: 'SET_DRAFT_GAME_SETUP', draft }),
+    []
+  );
+
   const createGame = useCallback<StoreContextValue['createGame']>(
-    (settings, otherNames) => {
+    (settings, otherNames, firstDealerSeat = 0) => {
       const you: GamePlayer = {
         id: state.user?.id ?? makeUuid(),
         name: state.user?.displayName ?? 'You',
@@ -237,7 +251,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         code: makeGameCode(),
         settings,
         players: [you, ...others],
-        firstDealerSeat: 0,
+        firstDealerSeat,
         status: 'live',
         hands: [],
         draftHand: emptyDraft(),
@@ -257,6 +271,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     [state.user, state.knownPlayers]
   );
 
+  const deleteGame = useCallback((gameId: string) => dispatch({ type: 'DELETE_GAME', gameId }), []);
   const setFirstDealer = useCallback((gameId: string, seat: number) => dispatch({ type: 'SET_FIRST_DEALER', gameId, seat }), []);
   const setDraft = useCallback((gameId: string, draft: DraftHand) => dispatch({ type: 'SET_DRAFT', gameId, draft }), []);
   const saveHand = useCallback((gameId: string) => dispatch({ type: 'SAVE_HAND', gameId }), []);
@@ -299,7 +314,9 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       signIn,
       signOut,
       updateUser,
+      setDraftGameSetup,
       createGame,
+      deleteGame,
       setFirstDealer,
       setDraft,
       saveHand,
@@ -311,7 +328,26 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       getGame,
       rematch,
     }),
-    [state, ready, signIn, signOut, updateUser, createGame, setFirstDealer, setDraft, saveHand, undoHand, pauseGame, resumeGame, abandonGame, markCelebrationSeen, getGame, rematch]
+    [
+      state,
+      ready,
+      signIn,
+      signOut,
+      updateUser,
+      setDraftGameSetup,
+      createGame,
+      deleteGame,
+      setFirstDealer,
+      setDraft,
+      saveHand,
+      undoHand,
+      pauseGame,
+      resumeGame,
+      abandonGame,
+      markCelebrationSeen,
+      getGame,
+      rematch,
+    ]
   );
 
   return <StoreContext.Provider value={value}>{children}</StoreContext.Provider>;
