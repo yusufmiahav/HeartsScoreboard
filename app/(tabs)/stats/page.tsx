@@ -1,6 +1,7 @@
 'use client';
 
 import { useStore } from '@/lib/store';
+import { useAuth } from '@/lib/auth';
 import { handScores } from '@/lib/engine';
 import type { Game } from '@/lib/types';
 
@@ -39,16 +40,16 @@ function longestCleanStreak(games: Game[], userId: string): number {
 
 export default function StatsPage() {
   const { state } = useStore();
-  const user = state.user;
-  if (!user) return null;
+  const { profile } = useAuth();
+  if (!profile) return null;
 
-  const relevant = state.games.filter((g) => g.players.some((p) => p.id === user.id) && g.hands.length > 0);
+  const relevant = state.games.filter((g) => g.players.some((p) => p.id === profile.id) && g.hands.length > 0);
   const finished = relevant.filter((g) => g.status === 'finished');
-  const wins = finished.filter((g) => g.winnerId === user.id).length;
-  const allHands = collectUserHands(relevant, user.id);
+  const wins = finished.filter((g) => g.winnerId === profile.id).length;
+  const allHands = collectUserHands(relevant, profile.id);
   const avgPerHand = allHands.length ? allHands.reduce((a, p) => a + p.points, 0) / allHands.length : 0;
-  const moonsShot = relevant.reduce((sum, g) => sum + g.hands.filter((h) => h.moonBy === user.id).length, 0);
-  const cleanStreak = longestCleanStreak(relevant, user.id);
+  const moonsShot = relevant.reduce((sum, g) => sum + g.hands.filter((h) => h.moonBy === profile.id).length, 0);
+  const cleanStreak = longestCleanStreak(relevant, profile.id);
   const last12 = allHands.slice(-12);
   const maxPoint = Math.max(1, ...last12.map((p) => p.points));
   const worstIndex = last12.reduce((wi, p, i) => (p.points > (last12[wi]?.points ?? -1) ? i : wi), 0);

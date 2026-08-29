@@ -4,18 +4,38 @@ export type MoonRule = 'others26' | 'shooterMinus26';
 export type BoardLayout = 'standings' | 'race' | 'ledger';
 export type GameStatus = 'live' | 'paused' | 'finished' | 'abandoned';
 
-export interface User {
+/** Real account identity, backed by Supabase auth + the `profiles` table. */
+export interface Profile {
   id: string;
   displayName: string;
-  email: string | null;
+  playerCode: string;
   isGuest: boolean;
+  email: string | null;
+  createdAt: string;
+}
+
+export type FriendRequestStatus = 'pending' | 'accepted';
+
+export interface FriendRequest {
+  id: string;
+  requesterId: string;
+  addresseeId: string;
+  status: FriendRequestStatus;
+  createdAt: string;
+  respondedAt: string | null;
+  otherProfile: Profile;
+  /** true if the signed-in user sent this request (vs. received it) */
+  isOutgoing: boolean;
+}
+
+/** Local, per-browser appearance settings — not tied to any account. */
+export interface UiPrefs {
   theme: ThemeMode;
   accent: AccentId;
   density: 'regular' | 'compact';
   textScale: number;
   bigNumerals: boolean;
   colourSuits: boolean;
-  createdAt: string;
 }
 
 export interface KnownPlayer {
@@ -76,7 +96,7 @@ export interface DraftGameSetup {
 }
 
 export interface AppState {
-  user: User | null;
+  prefs: UiPrefs;
   knownPlayers: KnownPlayer[];
   games: Game[];
   draftGameSetup: DraftGameSetup | null;

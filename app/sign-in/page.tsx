@@ -2,40 +2,90 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { useStore } from '@/lib/store';
+import { useAuth } from '@/lib/auth';
 import { Button, TextField } from '@/components/ui';
 import styles from './sign-in.module.css';
 
+type Mode = 'signin' | 'signup';
+
 export default function SignInPage() {
-  const { signIn } = useStore();
+  const { configured, signInWithPassword, signUpWithPassword, signInWithGoogle, signInWithMagicLink, continueAsGuest } =
+    useAuth();
   const router = useRouter();
+  const [mode, setMode] = useState<Mode>('signin');
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [note, setNote] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
 
-  function complete() {
-    router.replace('/games');
-  }
-
-  function handleSignIn(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!name.trim() || !email.trim() || !password) {
-      setNote('Enter a name, email and password to continue.');
+    if (!email.trim() || !password) {
+      setNote('Enter an email and password to continue.');
       return;
     }
-    signIn({ displayName: name.trim(), email: email.trim() });
-    complete();
+    if (mode === 'signup' && !name.trim()) {
+      setNote('Enter a name for your account.');
+      return;
+    }
+    setBusy(true);
+    setNote(null);
+    if (mode === 'signin') {
+      const { error } = await signInWithPassword(email.trim(), password);
+      setBusy(false);
+      if (error) {
+        setNote(error);
+        return;
+      }
+      router.replace('/games');
+    } else {
+      const { error, needsConfirmation } = await signUpWithPassword(email.trim(), password, name.trim());
+      setBusy(false);
+      if (error) {
+        setNote(error);
+        return;
+      }
+      if (needsConfirmation) {
+        setNote('Check your email to confirm the account, then sign in.');
+        setMode('signin');
+        return;
+      }
+      router.replace('/games');
+    }
   }
 
-  function handleGuest() {
-    const n = String(Math.floor(1000 + Math.random() * 9000));
-    signIn({ displayName: `Guest ${n}`, isGuest: true });
-    complete();
+  async function handleGoogle() {
+    setBusy(true);
+    setNote(null);
+    const { error } = await signInWithGoogle();
+    setBusy(false);
+    if (error) setNote(error);
+    // on success the browser is redirected away to Google — nothing else to do here
   }
 
-  function handleUnavailable(label: string) {
-    setNote(`${label} isn't wired up in this demo yet — use email + password or continue as a guest.`);
+  async function handleMagicLink() {
+    if (!email.trim()) {
+      setNote('Enter your email above first, then tap this.');
+      return;
+    }
+    setBusy(true);
+    setNote(null);
+    const { error } = await signInWithMagicLink(email.trim());
+    setBusy(false);
+    setNote(error ?? `Check ${email.trim()} for a sign-in link.`);
+  }
+
+  async function handleGuest() {
+    setBusy(true);
+    setNote(null);
+    const { error } = await continueAsGuest();
+    setBusy(false);
+    if (error) {
+      setNote(error);
+      return;
+    }
+    router.replace('/games');
   }
 
   return (
@@ -56,8 +106,32 @@ export default function SignInPage() {
           </div>
         </div>
 
-        <form onSubmit={handleSignIn} style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-          <TextField placeholder="Name" value={name} onChange={(e) => setName(e.target.value)} autoComplete="name" />
+        {!configured && (
+          <div
+            style={{
+              fontSize: 12.5,
+              color: 'var(--red)',
+              background: 'var(--redsoft)',
+              border: '1px solid var(--redline)',
+              borderRadius: 12,
+              padding: '10px 14px',
+              lineHeight: 1.5,
+            }}
+          >
+            Backend not configured — accounts, Google sign-in and friends need a Supabase project. See README.md
+            &quot;Backend setup&quot;.
+          </div>
+        )}
+
+        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          {mode === 'signup' && (
+            <TextField
+              placeholder="Name"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              autoComplete="name"
+            />
+          )}
           <TextField
             placeholder="Email"
             type="email"
@@ -70,11 +144,11 @@ export default function SignInPage() {
             type="password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            autoComplete="current-password"
+            autoComplete={mode === 'signin' ? 'current-password' : 'new-password'}
           />
           <div style={{ marginTop: 4 }}>
-            <Button type="submit" variant="primary">
-              Sign in
+            <Button type="submit" variant="primary" disabled={busy}>
+              {mode === 'signin' ? 'Sign in' : 'Create account'}
             </Button>
           </div>
         </form>
@@ -92,21 +166,49 @@ export default function SignInPage() {
         </div>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-          <Button variant="secondary" onClick={() => handleUnavailable('Email me a code')}>
+          <Button variant="secondary" onClick={handleMagicLink} disabled={busy}>
             Email me a code
           </Button>
-          <Button variant="secondary" onClick={() => handleUnavailable('Apple sign in')}>
-             Apple
+          <Button variant="secondary" onClick={handleGoogle} disabled={busy}>
+            Google
           </Button>
         </div>
       </div>
 
       <div className="ds-body" style={{ paddingTop: 0, display: 'flex', flexDirection: 'column', gap: 16 }}>
-        <Button variant="dashed" onClick={handleGuest}>
+        <Button variant="dashed" onClick={handleGuest} disabled={busy}>
           Keep score as a guest
         </Button>
         <div style={{ textAlign: 'center', fontSize: 13, color: 'var(--dim)' }}>
-          New here? <a href="#" onClick={(e) => e.preventDefault()}>Create an account</a>
+          {mode === 'signin' ? (
+            <>
+              New here?{' '}
+              <a
+                href="#"
+                onClick={(e) => {
+                  e.preventDefault();
+                  setMode('signup');
+                  setNote(null);
+                }}
+              >
+                Create an account
+              </a>
+            </>
+          ) : (
+            <>
+              Have an account?{' '}
+              <a
+                href="#"
+                onClick={(e) => {
+                  e.preventDefault();
+                  setMode('signin');
+                  setNote(null);
+                }}
+              >
+                Sign in
+              </a>
+            </>
+          )}
         </div>
       </div>
     </div>

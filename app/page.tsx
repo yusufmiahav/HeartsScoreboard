@@ -2,16 +2,16 @@
 
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { useStore } from '@/lib/store';
+import { useAuth } from '@/lib/auth';
 
 export default function RootPage() {
-  const { state, ready } = useStore();
+  const { session, loading } = useAuth();
   const router = useRouter();
 
   useEffect(() => {
-    if (!ready) return;
-    router.replace(state.user ? '/games' : '/sign-in');
-  }, [ready, state.user, router]);
+    if (loading) return;
+    router.replace(session ? '/games' : '/sign-in');
+  }, [loading, session, router]);
 
   return null;
 }

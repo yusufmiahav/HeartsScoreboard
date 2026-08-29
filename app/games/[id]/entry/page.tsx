@@ -3,6 +3,7 @@
 import { use, useState } from 'react';
 import { notFound, useRouter } from 'next/navigation';
 import { useStore } from '@/lib/store';
+import { useAuth } from '@/lib/auth';
 import {
   checkGameEnd,
   expectedHandTotal,
@@ -18,6 +19,7 @@ import { Button, IconButton, Sheet, Stepper, UndoIcon } from '@/components/ui';
 export default function ScoreEntryPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const { getGame, setDraft, saveHand, undoHand } = useStore();
+  const { profile } = useAuth();
   const router = useRouter();
   const game = getGame(id);
   const [moonPickerOpen, setMoonPickerOpen] = useState(false);
@@ -89,7 +91,8 @@ export default function ScoreEntryPage({ params }: { params: Promise<{ id: strin
       ],
     };
     const result = checkGameEnd(hypothetical);
-    saveHand(game!.id);
+    const enteredBy = profile?.id ?? game!.players.find((p) => p.isYou)?.id ?? '';
+    saveHand(game!.id, enteredBy);
     router.push(result.over ? `/games/${game!.id}/over` : `/games/${game!.id}/board`);
   }
 

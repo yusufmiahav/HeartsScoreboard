@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useStore } from '@/lib/store';
+import { useAuth } from '@/lib/auth';
 import { passRecipientSeat, passingDirectionForHand } from '@/lib/engine';
 import { ScreenHeader } from '@/components/ScreenHeader';
 import { Button } from '@/components/ui';
@@ -18,6 +19,7 @@ function shuffled<T>(arr: T[]): T[] {
 
 export default function SeatingPage() {
   const { state, createGame, setDraftGameSetup } = useStore();
+  const { profile } = useAuth();
   const router = useRouter();
   const draft = state.draftGameSetup;
 
@@ -33,7 +35,7 @@ export default function SeatingPage() {
 
   if (!draft) return null;
 
-  const you = state.user?.displayName ?? 'You';
+  const you = profile?.displayName ?? 'You';
   const seatNames = [you, ...order];
 
   function move(i: number, dir: -1 | 1) {
@@ -51,8 +53,13 @@ export default function SeatingPage() {
   }
 
   const handleDeal = () => {
+    if (!profile) return;
     leavingRef.current = true;
-    const game = createGame(draft.settings, order, dealerSeat);
+    const game = createGame(draft.settings, order, dealerSeat, {
+      id: profile.id,
+      name: profile.displayName,
+      isGuest: profile.isGuest,
+    });
     router.push(`/games/${game.id}/start`);
   };
 
@@ -137,7 +144,7 @@ export default function SeatingPage() {
         </div>
       </div>
       <div className="ds-foot">
-        <Button variant="primary" onClick={handleDeal}>
+        <Button variant="primary" onClick={handleDeal} disabled={!profile}>
           Deal first hand
         </Button>
       </div>

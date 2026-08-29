@@ -1,8 +1,10 @@
 'use client';
 
+import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useStore } from '@/lib/store';
-import { Button, Toggle } from '@/components/ui';
+import { useAuth } from '@/lib/auth';
+import { Button, TextField, Toggle } from '@/components/ui';
 import { initials } from '@/lib/format';
 import type { AccentId, ThemeMode } from '@/lib/types';
 
@@ -19,10 +21,36 @@ const ACCENTS: { id: AccentId; label: string; hex: string }[] = [
 ];
 
 export default function SettingsPage() {
-  const { state, updateUser, signOut } = useStore();
+  const { state, updatePrefs } = useStore();
+  const { profile, signOut, upgradeGuest } = useAuth();
   const router = useRouter();
-  const user = state.user;
-  if (!user) return null;
+  const prefs = state.prefs;
+
+  const [showUpgrade, setShowUpgrade] = useState(false);
+  const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [note, setNote] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  if (!profile) return null;
+
+  async function handleUpgrade(e: React.FormEvent) {
+    e.preventDefault();
+    if (!name.trim() || !email.trim() || !password) {
+      setNote('Fill in a name, email and password.');
+      return;
+    }
+    setBusy(true);
+    const { error } = await upgradeGuest(email.trim(), password, name.trim());
+    setBusy(false);
+    if (error) {
+      setNote(error);
+      return;
+    }
+    setNote('Account saved — check your email to confirm it.');
+    setShowUpgrade(false);
+  }
 
   return (
     <div className="ds-body" style={{ paddingTop: 58 }}>
@@ -44,20 +72,21 @@ export default function SettingsPage() {
               flexDirection: 'column',
               gap: 8,
               padding: '14px 10px',
-              borderColor: user.theme === t.id ? 'var(--redline)' : 'var(--line)',
+              borderColor: prefs.theme === t.id ? 'var(--redline)' : 'var(--line)',
             }}
-            onClick={() => updateUser({ theme: t.id })}
+            onClick={() => updatePrefs({ theme: t.id })}
           >
             <div
               style={{
                 width: 40,
                 height: 26,
                 borderRadius: 6,
-                background: t.id === 'ivory' ? '#F8F5F4' : t.id === 'midnight' ? '#0A0708' : 'linear-gradient(90deg,#0A0708 50%,#F8F5F4 50%)',
+                background:
+                  t.id === 'ivory' ? '#F8F5F4' : t.id === 'midnight' ? '#0A0708' : 'linear-gradient(90deg,#0A0708 50%,#F8F5F4 50%)',
                 border: '1px solid var(--line2)',
               }}
             />
-            <span style={{ fontSize: 12, color: user.theme === t.id ? 'var(--tx)' : 'var(--dim)' }}>{t.label}</span>
+            <span style={{ fontSize: 12, color: prefs.theme === t.id ? 'var(--tx)' : 'var(--dim)' }}>{t.label}</span>
           </button>
         ))}
       </div>
@@ -69,15 +98,15 @@ export default function SettingsPage() {
         {ACCENTS.map((a) => (
           <button
             key={a.id}
-            onClick={() => updateUser({ accent: a.id })}
+            onClick={() => updatePrefs({ accent: a.id })}
             aria-label={a.label}
             style={{
               width: 40,
               height: 40,
               borderRadius: '50%',
               background: a.hex,
-              border: user.accent === a.id ? '2px solid var(--tx)' : '2px solid transparent',
-              boxShadow: user.accent === a.id ? '0 0 0 2px var(--sf)' : 'none',
+              border: prefs.accent === a.id ? '2px solid var(--tx)' : '2px solid transparent',
+              boxShadow: prefs.accent === a.id ? '0 0 0 2px var(--sf)' : 'none',
             }}
           />
         ))}
@@ -89,18 +118,18 @@ export default function SettingsPage() {
       <div className="ds-card" style={{ padding: 4, marginBottom: 26 }}>
         <SettingRow
           label="Big scoreboard numerals"
-          on={user.bigNumerals}
-          onChange={(v) => updateUser({ bigNumerals: v })}
+          on={prefs.bigNumerals}
+          onChange={(v) => updatePrefs({ bigNumerals: v })}
         />
         <SettingRow
           label="Compact rows"
-          on={user.density === 'compact'}
-          onChange={(v) => updateUser({ density: v ? 'compact' : 'regular' })}
+          on={prefs.density === 'compact'}
+          onChange={(v) => updatePrefs({ density: v ? 'compact' : 'regular' })}
         />
         <SettingRow
           label="Suit symbols in colour"
-          on={user.colourSuits}
-          onChange={(v) => updateUser({ colourSuits: v })}
+          on={prefs.colourSuits}
+          onChange={(v) => updatePrefs({ colourSuits: v })}
           last
         />
       </div>
@@ -124,18 +153,46 @@ export default function SettingsPage() {
             flex: 'none',
           }}
         >
-          {initials(user.displayName)}
+          {initials(profile.displayName)}
         </div>
         <div style={{ flex: 1 }}>
-          <div style={{ fontSize: 15, fontWeight: 500 }}>{user.displayName}</div>
+          <div style={{ fontSize: 15, fontWeight: 500 }}>{profile.displayName}</div>
           <div style={{ fontSize: 12, color: 'var(--dim2)', marginTop: 1 }}>
-            {user.email ?? (user.isGuest ? 'Guest player' : '')}
+            {profile.email ?? (profile.isGuest ? 'Guest player' : '')}
           </div>
         </div>
         <div className="ds-mono" style={{ fontSize: 10, letterSpacing: '.1em', textTransform: 'uppercase', color: 'var(--dim2)' }}>
-          {user.id}
+          {profile.playerCode}
         </div>
       </div>
+
+      {profile.isGuest && !showUpgrade && (
+        <Button variant="dashed" onClick={() => setShowUpgrade(true)} style={{ marginBottom: 10 }}>
+          Save as an account
+        </Button>
+      )}
+
+      {profile.isGuest && showUpgrade && (
+        <form onSubmit={handleUpgrade} className="ds-card" style={{ padding: 14, display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 10 }}>
+          <div style={{ fontSize: 12.5, color: 'var(--dim)', marginBottom: 4 }}>
+            Keeps this device&apos;s game history under a real account.
+          </div>
+          <TextField placeholder="Name" value={name} onChange={(e) => setName(e.target.value)} />
+          <TextField placeholder="Email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
+          <TextField
+            placeholder="Password"
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+          />
+          <Button type="submit" variant="primary" disabled={busy}>
+            Save as an account
+          </Button>
+        </form>
+      )}
+
+      {note && <div style={{ fontSize: 12.5, color: 'var(--dim)', marginBottom: 10, lineHeight: 1.5 }}>{note}</div>}
+
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 26 }}>
         <Button variant="secondary" onClick={() => router.push('/rules')}>
           Rules reference

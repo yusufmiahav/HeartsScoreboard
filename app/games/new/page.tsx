@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useStore } from '@/lib/store';
+import { useAuth } from '@/lib/auth';
 import { ScreenHeader } from '@/components/ScreenHeader';
 import { Button, Chip, Toggle } from '@/components/ui';
 import type { MoonRule } from '@/lib/types';
@@ -11,6 +12,7 @@ const PRESETS = [50, 100, 150, 200];
 
 export default function NewGamePage() {
   const { state, setDraftGameSetup } = useStore();
+  const { profile } = useAuth();
   const router = useRouter();
   const existingDraft = state.draftGameSetup;
   const [names, setNames] = useState(existingDraft?.playerNames ?? ['', '', '']);
@@ -39,7 +41,7 @@ export default function NewGamePage() {
           ))}
         </datalist>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 20 }}>
-          <PlayerRow index={1} name={state.user?.displayName ?? 'You'} note="you" locked />
+          <PlayerRow index={1} name={profile?.displayName ?? 'You'} note="you" locked />
           {names.map((n, i) => (
             <PlayerRow
               key={i}

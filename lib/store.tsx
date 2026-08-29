@@ -1,65 +1,56 @@
 'use client';
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useReducer, useRef, useState } from 'react';
-import type { AppState, DraftGameSetup, DraftHand, Game, GamePlayer, GameSettings, Hand, KnownPlayer, User } from './types';
+import type { AppState, DraftGameSetup, DraftHand, Game, GamePlayer, GameSettings, Hand, KnownPlayer, UiPrefs } from './types';
 import { checkGameEnd, cloneDraftFromHand, emptyDraft } from './engine';
-import { makeGameCode, makePlayerId, makeUuid } from './id';
+import { makeGameCode, makeUuid } from './id';
 
 const STORAGE_KEY = 'hearts-scoreboard:v1';
 
-function defaultUser(overrides: Partial<User>): User {
-  return {
-    id: makePlayerId(),
-    displayName: 'You',
-    email: null,
-    isGuest: false,
-    theme: 'midnight',
-    accent: 'crimson',
-    density: 'regular',
-    textScale: 1,
-    bigNumerals: false,
-    colourSuits: true,
-    createdAt: new Date().toISOString(),
-    ...overrides,
-  };
-}
+const defaultPrefs: UiPrefs = {
+  theme: 'midnight',
+  accent: 'crimson',
+  density: 'regular',
+  textScale: 1,
+  bigNumerals: false,
+  colourSuits: true,
+};
 
 const initialState: AppState = {
-  user: null,
+  prefs: defaultPrefs,
   knownPlayers: [],
   games: [],
   draftGameSetup: null,
 };
 
+export interface Viewer {
+  id: string;
+  name: string;
+  isGuest: boolean;
+}
+
 type Action =
   | { type: 'HYDRATE'; state: AppState }
-  | { type: 'SIGN_IN'; user: User }
-  | { type: 'SIGN_OUT' }
-  | { type: 'UPDATE_USER'; patch: Partial<User> }
+  | { type: 'UPDATE_PREFS'; patch: Partial<UiPrefs> }
   | { type: 'UPSERT_KNOWN_PLAYERS'; players: KnownPlayer[] }
   | { type: 'SET_DRAFT_GAME_SETUP'; draft: DraftGameSetup | null }
   | { type: 'CREATE_GAME'; game: Game }
   | { type: 'DELETE_GAME'; gameId: string }
   | { type: 'SET_FIRST_DEALER'; gameId: string; seat: number }
   | { type: 'SET_DRAFT'; gameId: string; draft: DraftHand }
-  | { type: 'SAVE_HAND'; gameId: string }
+  | { type: 'SAVE_HAND'; gameId: string; enteredBy: string }
   | { type: 'UNDO_HAND'; gameId: string }
   | { type: 'PAUSE_GAME'; gameId: string }
   | { type: 'RESUME_GAME'; gameId: string }
   | { type: 'ABANDON_GAME'; gameId: string }
-  | { type: 'MARK_CELEBRATION_SEEN'; gameId: string }
-  | { type: 'START_REMATCH'; gameId: string; newGameId: string };
+  | { type: 'MARK_CELEBRATION_SEEN'; gameId: string };
 
 function reducer(state: AppState, action: Action): AppState {
   switch (action.type) {
     case 'HYDRATE':
-      return { ...initialState, ...action.state };
-    case 'SIGN_IN':
-      return { ...state, user: action.user };
-    case 'SIGN_OUT':
-      return { ...state, user: null };
-    case 'UPDATE_USER':
-      return state.user ? { ...state, user: { ...state.user, ...action.patch } } : state;
+      return { ...initialState, ...action.state, prefs: { ...defaultPrefs, ...action.state.prefs } };
+    case 'UPDATE_PREFS':
+      return { ...state, prefs: { ...state.prefs, ...action.patch } };
     case 'UPSERT_KNOWN_PLAYERS': {
       const byId = new Map(state.knownPlayers.map((p) => [p.id, p]));
       for (const p of action.players) {
@@ -89,14 +80,13 @@ function reducer(state: AppState, action: Action): AppState {
         ...state,
         games: state.games.map((g) => {
           if (g.id !== action.gameId) return g;
-          if (!state.user) return g;
           const hand: Hand = {
             n: g.hands.length + 1,
             hearts: { ...g.draftHand.hearts },
             queenOf: g.draftHand.queenOf,
             jackOf: g.draftHand.jackOf,
             moonBy: g.draftHand.moonBy,
-            enteredBy: state.user.id,
+            enteredBy: action.enteredBy,
             enteredAt: new Date().toISOString(),
           };
           const withHand: Game = { ...g, hands: [...g.hands, hand], draftHand: emptyDraft() };
@@ -162,15 +152,13 @@ function reducer(state: AppState, action: Action): AppState {
 interface StoreContextValue {
   state: AppState;
   ready: boolean;
-  signIn: (partial: { displayName: string; email?: string | null; isGuest?: boolean }) => User;
-  signOut: () => void;
-  updateUser: (patch: Partial<User>) => void;
+  updatePrefs: (patch: Partial<UiPrefs>) => void;
   setDraftGameSetup: (draft: DraftGameSetup | null) => void;
-  createGame: (settings: GameSettings, otherNames: string[], firstDealerSeat?: number) => Game;
+  createGame: (settings: GameSettings, otherNames: string[], firstDealerSeat: number, you: Viewer) => Game;
   deleteGame: (gameId: string) => void;
   setFirstDealer: (gameId: string, seat: number) => void;
   setDraft: (gameId: string, draft: DraftHand) => void;
-  saveHand: (gameId: string) => void;
+  saveHand: (gameId: string, enteredBy: string) => void;
   undoHand: (gameId: string) => void;
   pauseGame: (gameId: string) => void;
   resumeGame: (gameId: string) => void;
@@ -210,18 +198,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     }
   }, [state, ready]);
 
-  const signIn = useCallback<StoreContextValue['signIn']>((partial) => {
-    const user = defaultUser({
-      displayName: partial.displayName,
-      email: partial.email ?? null,
-      isGuest: !!partial.isGuest,
-    });
-    dispatch({ type: 'SIGN_IN', user });
-    return user;
-  }, []);
-
-  const signOut = useCallback(() => dispatch({ type: 'SIGN_OUT' }), []);
-  const updateUser = useCallback((patch: Partial<User>) => dispatch({ type: 'UPDATE_USER', patch }), []);
+  const updatePrefs = useCallback((patch: Partial<UiPrefs>) => dispatch({ type: 'UPDATE_PREFS', patch }), []);
 
   const setDraftGameSetup = useCallback(
     (draft: DraftGameSetup | null) => dispatch({ type: 'SET_DRAFT_GAME_SETUP', draft }),
@@ -229,12 +206,12 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   );
 
   const createGame = useCallback<StoreContextValue['createGame']>(
-    (settings, otherNames, firstDealerSeat = 0) => {
-      const you: GamePlayer = {
-        id: state.user?.id ?? makeUuid(),
-        name: state.user?.displayName ?? 'You',
+    (settings, otherNames, firstDealerSeat, you) => {
+      const youPlayer: GamePlayer = {
+        id: you.id,
+        name: you.name,
         isYou: true,
-        isGuest: state.user?.isGuest ?? false,
+        isGuest: you.isGuest,
       };
       const others: GamePlayer[] = otherNames.map((name) => {
         const trimmed = name.trim() || 'Player';
@@ -250,7 +227,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         id: makeUuid(),
         code: makeGameCode(),
         settings,
-        players: [you, ...others],
+        players: [youPlayer, ...others],
         firstDealerSeat,
         status: 'live',
         hands: [],
@@ -268,13 +245,13 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       });
       return game;
     },
-    [state.user, state.knownPlayers]
+    [state.knownPlayers]
   );
 
   const deleteGame = useCallback((gameId: string) => dispatch({ type: 'DELETE_GAME', gameId }), []);
   const setFirstDealer = useCallback((gameId: string, seat: number) => dispatch({ type: 'SET_FIRST_DEALER', gameId, seat }), []);
   const setDraft = useCallback((gameId: string, draft: DraftHand) => dispatch({ type: 'SET_DRAFT', gameId, draft }), []);
-  const saveHand = useCallback((gameId: string) => dispatch({ type: 'SAVE_HAND', gameId }), []);
+  const saveHand = useCallback((gameId: string, enteredBy: string) => dispatch({ type: 'SAVE_HAND', gameId, enteredBy }), []);
   const undoHand = useCallback((gameId: string) => dispatch({ type: 'UNDO_HAND', gameId }), []);
   const pauseGame = useCallback((gameId: string) => dispatch({ type: 'PAUSE_GAME', gameId }), []);
   const resumeGame = useCallback((gameId: string) => dispatch({ type: 'RESUME_GAME', gameId }), []);
@@ -311,9 +288,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     () => ({
       state,
       ready,
-      signIn,
-      signOut,
-      updateUser,
+      updatePrefs,
       setDraftGameSetup,
       createGame,
       deleteGame,
@@ -331,9 +306,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     [
       state,
       ready,
-      signIn,
-      signOut,
-      updateUser,
+      updatePrefs,
       setDraftGameSetup,
       createGame,
       deleteGame,
