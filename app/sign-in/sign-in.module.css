@@ -1,0 +1,48 @@
+.fan {
+  position: relative;
+  height: 110px;
+  margin: 20px auto 6px;
+  width: 200px;
+}
+.card {
+  position: absolute;
+  left: 50%;
+  top: 0;
+  width: 80px;
+  height: 58px;
+  margin-left: -40px;
+  border-radius: 8px;
+  background: var(--sf);
+  border: 1px solid var(--line2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+  box-shadow: 0 10px 22px rgba(0, 0, 0, 0.35);
+}
+.spade {
+  transform: rotate(-14deg) translateX(-46px);
+  color: var(--tx);
+}
+.diamond {
+  transform: rotate(-3deg);
+  color: var(--red);
+}
+.heart {
+  transform: rotate(10deg) translateX(46px);
+  background: var(--red);
+  color: #fff;
+  border-color: var(--red);
+}
+
+.divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.divider span:first-child,
+.divider span:last-child {
+  flex: 1;
+  height: 1px;
+  background: var(--line);
+}

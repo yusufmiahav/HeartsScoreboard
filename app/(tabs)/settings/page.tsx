@@ -1,0 +1,181 @@
+'use client';
+
+import { useRouter } from 'next/navigation';
+import { useStore } from '@/lib/store';
+import { Button, Toggle } from '@/components/ui';
+import { initials } from '@/lib/format';
+import type { AccentId, ThemeMode } from '@/lib/types';
+
+const THEMES: { id: ThemeMode; label: string }[] = [
+  { id: 'midnight', label: 'Midnight' },
+  { id: 'ivory', label: 'Ivory' },
+  { id: 'auto', label: 'Auto' },
+];
+
+const ACCENTS: { id: AccentId; label: string; hex: string }[] = [
+  { id: 'crimson', label: 'Crimson', hex: '#E11D33' },
+  { id: 'claret', label: 'Claret', hex: '#A3111F' },
+  { id: 'brass', label: 'Brass', hex: '#D8B15A' },
+];
+
+export default function SettingsPage() {
+  const { state, updateUser, signOut } = useStore();
+  const router = useRouter();
+  const user = state.user;
+  if (!user) return null;
+
+  return (
+    <div className="ds-body" style={{ paddingTop: 58 }}>
+      <div className="ds-eyebrow">Settings</div>
+      <div className="ds-h1" style={{ fontSize: 32, margin: '4px 0 22px' }}>
+        Appearance
+      </div>
+
+      <div className="ds-eyebrow" style={{ marginBottom: 10 }}>
+        Theme
+      </div>
+      <div style={{ display: 'flex', gap: 8, marginBottom: 22 }}>
+        {THEMES.map((t) => (
+          <button
+            key={t.id}
+            className="ds-tap ds-card"
+            style={{
+              flex: 1,
+              flexDirection: 'column',
+              gap: 8,
+              padding: '14px 10px',
+              borderColor: user.theme === t.id ? 'var(--redline)' : 'var(--line)',
+            }}
+            onClick={() => updateUser({ theme: t.id })}
+          >
+            <div
+              style={{
+                width: 40,
+                height: 26,
+                borderRadius: 6,
+                background: t.id === 'ivory' ? '#F8F5F4' : t.id === 'midnight' ? '#0A0708' : 'linear-gradient(90deg,#0A0708 50%,#F8F5F4 50%)',
+                border: '1px solid var(--line2)',
+              }}
+            />
+            <span style={{ fontSize: 12, color: user.theme === t.id ? 'var(--tx)' : 'var(--dim)' }}>{t.label}</span>
+          </button>
+        ))}
+      </div>
+
+      <div className="ds-eyebrow" style={{ marginBottom: 10 }}>
+        Accent
+      </div>
+      <div style={{ display: 'flex', gap: 10, marginBottom: 26 }}>
+        {ACCENTS.map((a) => (
+          <button
+            key={a.id}
+            onClick={() => updateUser({ accent: a.id })}
+            aria-label={a.label}
+            style={{
+              width: 40,
+              height: 40,
+              borderRadius: '50%',
+              background: a.hex,
+              border: user.accent === a.id ? '2px solid var(--tx)' : '2px solid transparent',
+              boxShadow: user.accent === a.id ? '0 0 0 2px var(--sf)' : 'none',
+            }}
+          />
+        ))}
+      </div>
+
+      <div className="ds-eyebrow" style={{ marginBottom: 10 }}>
+        Numbers &amp; density
+      </div>
+      <div className="ds-card" style={{ padding: 4, marginBottom: 26 }}>
+        <SettingRow
+          label="Big scoreboard numerals"
+          on={user.bigNumerals}
+          onChange={(v) => updateUser({ bigNumerals: v })}
+        />
+        <SettingRow
+          label="Compact rows"
+          on={user.density === 'compact'}
+          onChange={(v) => updateUser({ density: v ? 'compact' : 'regular' })}
+        />
+        <SettingRow
+          label="Suit symbols in colour"
+          on={user.colourSuits}
+          onChange={(v) => updateUser({ colourSuits: v })}
+          last
+        />
+      </div>
+
+      <div className="ds-eyebrow" style={{ marginBottom: 10 }}>
+        Account
+      </div>
+      <div className="ds-card" style={{ padding: 14, display: 'flex', alignItems: 'center', gap: 12, marginBottom: 10 }}>
+        <div
+          className="ds-mono"
+          style={{
+            width: 40,
+            height: 40,
+            borderRadius: 11,
+            background: 'var(--red)',
+            color: '#fff',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontSize: 15,
+            flex: 'none',
+          }}
+        >
+          {initials(user.displayName)}
+        </div>
+        <div style={{ flex: 1 }}>
+          <div style={{ fontSize: 15, fontWeight: 500 }}>{user.displayName}</div>
+          <div style={{ fontSize: 12, color: 'var(--dim2)', marginTop: 1 }}>
+            {user.email ?? (user.isGuest ? 'Guest player' : '')}
+          </div>
+        </div>
+        <div className="ds-mono" style={{ fontSize: 10, letterSpacing: '.1em', textTransform: 'uppercase', color: 'var(--dim2)' }}>
+          {user.id}
+        </div>
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 26 }}>
+        <Button variant="secondary" onClick={() => router.push('/rules')}>
+          Rules reference
+        </Button>
+        <Button
+          variant="destructive"
+          onClick={() => {
+            if (confirm('Sign out? Your games stay saved on this device.')) signOut();
+          }}
+        >
+          Sign out
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+function SettingRow({
+  label,
+  on,
+  onChange,
+  last,
+}: {
+  label: string;
+  on: boolean;
+  onChange: (v: boolean) => void;
+  last?: boolean;
+}) {
+  return (
+    <div
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        padding: '12px 12px',
+        borderBottom: last ? 'none' : '1px solid var(--line)',
+      }}
+    >
+      <span style={{ fontSize: 14 }}>{label}</span>
+      <Toggle on={on} onChange={onChange} />
+    </div>
+  );
+}
