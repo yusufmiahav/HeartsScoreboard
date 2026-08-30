@@ -2,6 +2,24 @@
 
 import type { ButtonHTMLAttributes, InputHTMLAttributes, ReactNode } from 'react';
 
+export function ProfileErrorNotice({ message }: { message: string }) {
+  return (
+    <div
+      style={{
+        fontSize: 12.5,
+        color: 'var(--red)',
+        background: 'var(--redsoft)',
+        border: '1px solid var(--redline)',
+        borderRadius: 12,
+        padding: '10px 14px',
+        lineHeight: 1.5,
+      }}
+    >
+      {message}
+    </div>
+  );
+}
+
 export function Button({
   variant = 'primary',
   className = '',

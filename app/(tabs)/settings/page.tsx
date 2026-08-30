@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useStore } from '@/lib/store';
 import { useAuth } from '@/lib/auth';
-import { Button, TextField, Toggle } from '@/components/ui';
+import { Button, ProfileErrorNotice, TextField, Toggle } from '@/components/ui';
 import { initials } from '@/lib/format';
 import type { AccentId, ThemeMode } from '@/lib/types';
 
@@ -22,7 +22,7 @@ const ACCENTS: { id: AccentId; label: string; hex: string }[] = [
 
 export default function SettingsPage() {
   const { state, updatePrefs } = useStore();
-  const { profile, signOut, upgradeGuest } = useAuth();
+  const { profile, profileError, signOut, upgradeGuest } = useAuth();
   const router = useRouter();
   const prefs = state.prefs;
 
@@ -32,8 +32,6 @@ export default function SettingsPage() {
   const [password, setPassword] = useState('');
   const [note, setNote] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-
-  if (!profile) return null;
 
   async function handleUpgrade(e: React.FormEvent) {
     e.preventDefault();
@@ -137,58 +135,88 @@ export default function SettingsPage() {
       <div className="ds-eyebrow" style={{ marginBottom: 10 }}>
         Account
       </div>
-      <div className="ds-card" style={{ padding: 14, display: 'flex', alignItems: 'center', gap: 12, marginBottom: 10 }}>
-        <div
-          className="ds-mono"
-          style={{
-            width: 40,
-            height: 40,
-            borderRadius: 11,
-            background: 'var(--red)',
-            color: '#fff',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            fontSize: 15,
-            flex: 'none',
-          }}
-        >
-          {initials(profile.displayName)}
-        </div>
-        <div style={{ flex: 1 }}>
-          <div style={{ fontSize: 15, fontWeight: 500 }}>{profile.displayName}</div>
-          <div style={{ fontSize: 12, color: 'var(--dim2)', marginTop: 1 }}>
-            {profile.email ?? (profile.isGuest ? 'Guest player' : '')}
-          </div>
-        </div>
-        <div className="ds-mono" style={{ fontSize: 10, letterSpacing: '.1em', textTransform: 'uppercase', color: 'var(--dim2)' }}>
-          {profile.playerCode}
-        </div>
-      </div>
 
-      {profile.isGuest && !showUpgrade && (
-        <Button variant="dashed" onClick={() => setShowUpgrade(true)} style={{ marginBottom: 10 }}>
-          Save as an account
-        </Button>
+      {profileError && (
+        <div style={{ marginBottom: 10 }}>
+          <ProfileErrorNotice message={profileError} />
+        </div>
       )}
 
-      {profile.isGuest && showUpgrade && (
-        <form onSubmit={handleUpgrade} className="ds-card" style={{ padding: 14, display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 10 }}>
-          <div style={{ fontSize: 12.5, color: 'var(--dim)', marginBottom: 4 }}>
-            Keeps this device&apos;s game history under a real account.
+      {!profile && !profileError && (
+        <div style={{ fontSize: 13, color: 'var(--dim)', marginBottom: 10 }}>Loading your profile…</div>
+      )}
+
+      {profile && (
+        <>
+          <div
+            className="ds-card"
+            style={{ padding: 14, display: 'flex', alignItems: 'center', gap: 12, marginBottom: 10 }}
+          >
+            <div
+              className="ds-mono"
+              style={{
+                width: 40,
+                height: 40,
+                borderRadius: 11,
+                background: 'var(--red)',
+                color: '#fff',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: 15,
+                flex: 'none',
+              }}
+            >
+              {initials(profile.displayName)}
+            </div>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: 15, fontWeight: 500 }}>{profile.displayName}</div>
+              <div style={{ fontSize: 12, color: 'var(--dim2)', marginTop: 1 }}>
+                {profile.email ?? (profile.isGuest ? 'Guest player' : '')}
+              </div>
+            </div>
+            <div
+              className="ds-mono"
+              style={{ fontSize: 10, letterSpacing: '.1em', textTransform: 'uppercase', color: 'var(--dim2)' }}
+            >
+              {profile.playerCode}
+            </div>
           </div>
-          <TextField placeholder="Name" value={name} onChange={(e) => setName(e.target.value)} />
-          <TextField placeholder="Email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
-          <TextField
-            placeholder="Password"
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-          />
-          <Button type="submit" variant="primary" disabled={busy}>
-            Save as an account
-          </Button>
-        </form>
+
+          {profile.isGuest && !showUpgrade && (
+            <Button variant="dashed" onClick={() => setShowUpgrade(true)} style={{ marginBottom: 10 }}>
+              Save as an account
+            </Button>
+          )}
+
+          {profile.isGuest && showUpgrade && (
+            <form
+              onSubmit={handleUpgrade}
+              className="ds-card"
+              style={{ padding: 14, display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 10 }}
+            >
+              <div style={{ fontSize: 12.5, color: 'var(--dim)', marginBottom: 4 }}>
+                Keeps this device&apos;s game history under a real account.
+              </div>
+              <TextField placeholder="Name" value={name} onChange={(e) => setName(e.target.value)} />
+              <TextField
+                placeholder="Email"
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+              />
+              <TextField
+                placeholder="Password"
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+              />
+              <Button type="submit" variant="primary" disabled={busy}>
+                Save as an account
+              </Button>
+            </form>
+          )}
+        </>
       )}
 
       {note && <div style={{ fontSize: 12.5, color: 'var(--dim)', marginBottom: 10, lineHeight: 1.5 }}>{note}</div>}

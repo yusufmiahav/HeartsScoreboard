@@ -47,11 +47,18 @@ export async function updateSession(request: NextRequest) {
   // rather than trusting whatever is in the cookie.
   const {
     data: { user },
+    error,
   } = await supabase.auth.getUser();
 
   const path = request.nextUrl.pathname;
 
-  if (!user && path !== '/' && !isPublicPath(path)) {
+  // Only redirect when we're actually sure there's no session. A transient
+  // error here (network hiccup, a refresh race) isn't proof of being signed
+  // out — treating it as one would silently bounce signed-in people back to
+  // /sign-in on every navigation that happens to hit a flaky request. RLS is
+  // still the real authorization boundary regardless of what this optimistic
+  // check does.
+  if (!user && !error && path !== '/' && !isPublicPath(path)) {
     const url = request.nextUrl.clone();
     url.pathname = '/sign-in';
     return NextResponse.redirect(url);

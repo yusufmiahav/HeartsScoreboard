@@ -32,6 +32,8 @@ interface AuthContextValue {
   loading: boolean;
   session: Session | null;
   profile: Profile | null;
+  /** Set when profile loading exhausted its retries — surface this instead of a blank page. */
+  profileError: string | null;
   signInWithPassword: (email: string, password: string) => Promise<Result>;
   signUpWithPassword: (
     email: string,
@@ -55,6 +57,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const [session, setSession] = useState<Session | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
+  const [profileError, setProfileError] = useState<string | null>(null);
   // Nothing to wait for when there's no backend configured.
   const [loading, setLoading] = useState(() => supabaseConfigured);
 
@@ -63,15 +66,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (!supabase) return;
     // The profiles row is created by a DB trigger right after sign-up, so it
     // can lag the client by a beat — retry briefly instead of showing nothing.
+    let lastError: string | null = null;
     for (let attempt = 0; attempt < 6; attempt++) {
       const { data, error } = await supabase.from('profiles').select('*').eq('id', userId).maybeSingle();
       if (data) {
         setProfile(mapProfile(data as ProfileRow, email));
+        setProfileError(null);
         return;
       }
-      if (error) break;
+      if (error) {
+        lastError = error.message;
+        break;
+      }
       await new Promise((resolve) => setTimeout(resolve, 250));
     }
+    setProfileError(
+      lastError ??
+        "Couldn't find your player profile. If you just ran the database migration, try signing out and back in — otherwise check that supabase/migrations/0001_init.sql has been run."
+    );
   }, [client]);
 
   useEffect(() => {
@@ -79,17 +91,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (!supabase) return;
     let active = true;
 
-    supabase.auth.getSession().then(({ data }) => {
+    supabase.auth.getSession().then(async ({ data }) => {
       if (!active) return;
       setSession(data.session);
-      if (data.session) fetchProfile(data.session.user.id, data.session.user.email ?? null);
+      if (data.session) {
+        await fetchProfile(data.session.user.id, data.session.user.email ?? null);
+        if (!active) return;
+      }
       setLoading(false);
     });
 
     const { data: listener } = supabase.auth.onAuthStateChange((_event, newSession) => {
       setSession(newSession);
       if (newSession) fetchProfile(newSession.user.id, newSession.user.email ?? null);
-      else setProfile(null);
+      else {
+        setProfile(null);
+        setProfileError(null);
+      }
     });
 
     return () => {
@@ -200,6 +218,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       loading,
       session,
       profile,
+      profileError,
       signInWithPassword,
       signUpWithPassword,
       signInWithGoogle,
@@ -213,6 +232,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       loading,
       session,
       profile,
+      profileError,
       signInWithPassword,
       signUpWithPassword,
       signInWithGoogle,

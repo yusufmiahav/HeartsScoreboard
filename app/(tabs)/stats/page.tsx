@@ -3,6 +3,7 @@
 import { useStore } from '@/lib/store';
 import { useAuth } from '@/lib/auth';
 import { handScores } from '@/lib/engine';
+import { ProfileErrorNotice } from '@/components/ui';
 import type { Game } from '@/lib/types';
 
 interface HandPoint {
@@ -40,8 +41,22 @@ function longestCleanStreak(games: Game[], userId: string): number {
 
 export default function StatsPage() {
   const { state } = useStore();
-  const { profile } = useAuth();
-  if (!profile) return null;
+  const { profile, profileError } = useAuth();
+
+  if (profileError) {
+    return (
+      <div className="ds-body" style={{ paddingTop: 58 }}>
+        <ProfileErrorNotice message={profileError} />
+      </div>
+    );
+  }
+  if (!profile) {
+    return (
+      <div className="ds-body" style={{ paddingTop: 58, textAlign: 'center', color: 'var(--dim)', fontSize: 13.5 }}>
+        Loading your profile…
+      </div>
+    );
+  }
 
   const relevant = state.games.filter((g) => g.players.some((p) => p.id === profile.id) && g.hands.length > 0);
   const finished = relevant.filter((g) => g.status === 'finished');
