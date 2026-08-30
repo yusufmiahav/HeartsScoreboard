@@ -111,9 +111,15 @@ export function standings(game: Game): Standing[] {
       avgPerHand: game.hands.length ? (totals[player.id] ?? 0) / game.hands.length : 0,
       lastDelta: lastScores ? lastScores[player.id] ?? 0 : null,
     }))
-    .sort((a, b) => a.total - b.total)
-    .map((row, i) => ({ ...row, rank: i + 1 }));
-  return rows;
+    .sort((a, b) => a.total - b.total);
+  // Competition ranking: tied totals share a rank, and the next distinct
+  // total's rank skips ahead by however many shared it (1,1,1,4 — not 1,2,3,4).
+  const ranked: Standing[] = [];
+  for (let i = 0; i < rows.length; i++) {
+    const rank = i > 0 && rows[i - 1].total === rows[i].total ? ranked[i - 1].rank : i + 1;
+    ranked.push({ ...rows[i], rank });
+  }
+  return ranked;
 }
 
 export function dealerSeatForHand(game: Game, handNumber: number): number {
@@ -146,15 +152,13 @@ export function nextHandNumber(game: Game): number {
   return game.hands.length + 1;
 }
 
-export function checkGameEnd(game: Game): { over: boolean; winnerId: string | null } {
+export function checkGameEnd(game: Game): { over: boolean; winnerIds: string[] } {
   const totals = runningTotals(game);
   const anyOver = game.players.some((p) => (totals[p.id] ?? 0) >= game.settings.targetScore);
-  if (!anyOver) return { over: false, winnerId: null };
-  let winner = game.players[0];
-  for (const p of game.players) {
-    if ((totals[p.id] ?? 0) < (totals[winner.id] ?? 0)) winner = p;
-  }
-  return { over: true, winnerId: winner.id };
+  if (!anyOver) return { over: false, winnerIds: [] };
+  const lowest = Math.min(...game.players.map((p) => totals[p.id] ?? 0));
+  const winnerIds = game.players.filter((p) => (totals[p.id] ?? 0) === lowest).map((p) => p.id);
+  return { over: true, winnerIds };
 }
 
 export function cloneDraftFromHand(hand: Hand): DraftHand {

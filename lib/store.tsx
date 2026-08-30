@@ -96,7 +96,7 @@ function reducer(state: AppState, action: Action): AppState {
               ...withHand,
               status: 'finished',
               finishedAt: new Date().toISOString(),
-              winnerId: result.winnerId,
+              winnerIds: result.winnerIds,
               celebrationSeen: false,
             };
           }
@@ -117,7 +117,7 @@ function reducer(state: AppState, action: Action): AppState {
             draftHand: cloneDraftFromHand(lastHand),
             status: g.status === 'finished' ? 'live' : g.status,
             finishedAt: null,
-            winnerId: null,
+            winnerIds: [],
           };
         }),
       };
@@ -235,7 +235,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         createdAt: new Date().toISOString(),
         pausedAt: null,
         finishedAt: null,
-        winnerId: null,
+        winnerIds: [],
         celebrationSeen: true,
       };
       dispatch({ type: 'CREATE_GAME', game });
@@ -275,7 +275,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         createdAt: new Date().toISOString(),
         pausedAt: null,
         finishedAt: null,
-        winnerId: null,
+        winnerIds: [],
         celebrationSeen: true,
       };
       dispatch({ type: 'CREATE_GAME', game });

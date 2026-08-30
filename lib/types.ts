@@ -86,7 +86,8 @@ export interface Game {
   createdAt: string;
   pausedAt: string | null;
   finishedAt: string | null;
-  winnerId: string | null;
+  /** Usually one player, but a tie for lowest score means more than one. */
+  winnerIds: string[];
   celebrationSeen: boolean;
 }
 

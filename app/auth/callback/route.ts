@@ -10,8 +10,14 @@ export async function GET(request: Request) {
 
   if (code && supabaseConfigured) {
     const supabase = await createClient();
-    const { error } = await supabase.auth.exchangeCodeForSession(code);
+    const { data, error } = await supabase.auth.exchangeCodeForSession(code);
     if (!error) {
+      // Covers both a fresh Google sign-in and a guest linking Google via
+      // Settings → "Save as an account" — either way, once there's a real
+      // identity attached, this profile is no longer a guest's.
+      if (data.user && !data.user.is_anonymous) {
+        await supabase.from('profiles').update({ is_guest: false }).eq('id', data.user.id).eq('is_guest', true);
+      }
       return NextResponse.redirect(`${siteUrl}${next}`);
     }
   }

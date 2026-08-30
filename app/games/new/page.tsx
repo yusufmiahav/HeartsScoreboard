@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useStore } from '@/lib/store';
 import { useAuth } from '@/lib/auth';
 import { ScreenHeader } from '@/components/ScreenHeader';
-import { Button, Chip, Toggle } from '@/components/ui';
+import { Button, Chip, GamesHomeButton, Toggle } from '@/components/ui';
 import type { MoonRule } from '@/lib/types';
 
 const PRESETS = [50, 100, 150, 200];
@@ -33,7 +33,7 @@ export default function NewGamePage() {
 
   return (
     <div className="ds-screen">
-      <ScreenHeader title="New game" />
+      <ScreenHeader title="New game" actions={<GamesHomeButton />} />
       <div className="ds-body">
         <datalist id="known-players">
           {state.knownPlayers.map((p) => (

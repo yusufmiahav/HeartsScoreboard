@@ -2,8 +2,9 @@
 
 import { useStore } from '@/lib/store';
 import { useAuth } from '@/lib/auth';
-import { handScores } from '@/lib/engine';
+import { handScores, standings } from '@/lib/engine';
 import { ProfileErrorNotice } from '@/components/ui';
+import { formatDate } from '@/lib/format';
 import type { Game } from '@/lib/types';
 
 interface HandPoint {
@@ -60,7 +61,7 @@ export default function StatsPage() {
 
   const relevant = state.games.filter((g) => g.players.some((p) => p.id === profile.id) && g.hands.length > 0);
   const finished = relevant.filter((g) => g.status === 'finished');
-  const wins = finished.filter((g) => g.winnerId === profile.id).length;
+  const wins = finished.filter((g) => g.winnerIds.includes(profile.id)).length;
   const allHands = collectUserHands(relevant, profile.id);
   const avgPerHand = allHands.length ? allHands.reduce((a, p) => a + p.points, 0) / allHands.length : 0;
   const moonsShot = relevant.reduce((sum, g) => sum + g.hands.filter((h) => h.moonBy === profile.id).length, 0);
@@ -68,6 +69,7 @@ export default function StatsPage() {
   const last12 = allHands.slice(-12);
   const maxPoint = Math.max(1, ...last12.map((p) => p.points));
   const worstIndex = last12.reduce((wi, p, i) => (p.points > (last12[wi]?.points ?? -1) ? i : wi), 0);
+  const pastGames = [...finished].sort((a, b) => (b.finishedAt ?? '').localeCompare(a.finishedAt ?? ''));
 
   return (
     <div className="ds-body" style={{ paddingTop: 58 }}>
@@ -115,11 +117,54 @@ export default function StatsPage() {
         </>
       )}
 
+      {pastGames.length > 0 && (
+        <>
+          <div className="ds-eyebrow" style={{ marginBottom: 10 }}>
+            Past game scores
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 24 }}>
+            {pastGames.map((g) => (
+              <PastGameCard key={g.id} game={g} />
+            ))}
+          </div>
+        </>
+      )}
+
       {relevant.length === 0 && (
         <div style={{ textAlign: 'center', padding: '40px 0', color: 'var(--dim)', fontSize: 13.5 }}>
           Play a hand to start building your stats.
         </div>
       )}
+    </div>
+  );
+}
+
+function PastGameCard({ game }: { game: Game }) {
+  const rows = standings(game);
+  return (
+    <div className="ds-card" style={{ padding: 14 }}>
+      <div style={{ fontSize: 11.5, color: 'var(--dim2)', marginBottom: 8 }}>
+        {game.finishedAt ? formatDate(game.finishedAt) : ''} · to {game.settings.targetScore}
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+        {rows.map((r) => (
+          <div key={r.player.id} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <div
+              style={{
+                flex: 1,
+                fontSize: 13.5,
+                fontWeight: r.rank === 1 ? 500 : 400,
+                color: r.rank === 1 ? 'var(--tx)' : 'var(--dim)',
+              }}
+            >
+              {r.player.name}
+            </div>
+            <div className="ds-mono" style={{ fontSize: 14, color: r.rank === 1 ? 'var(--red)' : 'var(--dim)' }}>
+              {r.total}
+            </div>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }

@@ -22,7 +22,7 @@ const ACCENTS: { id: AccentId; label: string; hex: string }[] = [
 
 export default function SettingsPage() {
   const { state, updatePrefs } = useStore();
-  const { profile, profileError, signOut, upgradeGuest } = useAuth();
+  const { profile, profileError, signOut, upgradeGuest, linkGoogle, updateDisplayName } = useAuth();
   const router = useRouter();
   const prefs = state.prefs;
 
@@ -32,6 +32,25 @@ export default function SettingsPage() {
   const [password, setPassword] = useState('');
   const [note, setNote] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+
+  const [editingName, setEditingName] = useState(false);
+  const [nameDraft, setNameDraft] = useState('');
+
+  async function handleSaveName(e: React.FormEvent) {
+    e.preventDefault();
+    if (!nameDraft.trim()) {
+      setNote('Enter a name.');
+      return;
+    }
+    setBusy(true);
+    const { error } = await updateDisplayName(nameDraft.trim());
+    setBusy(false);
+    if (error) {
+      setNote(error);
+      return;
+    }
+    setEditingName(false);
+  }
 
   async function handleUpgrade(e: React.FormEvent) {
     e.preventDefault();
@@ -48,6 +67,15 @@ export default function SettingsPage() {
     }
     setNote('Account saved — check your email to confirm it.');
     setShowUpgrade(false);
+  }
+
+  async function handleGoogleUpgrade() {
+    setBusy(true);
+    setNote(null);
+    const { error } = await linkGoogle();
+    setBusy(false);
+    if (error) setNote(error);
+    // on success the browser redirects away to Google — nothing else to do here
   }
 
   return (
@@ -148,39 +176,80 @@ export default function SettingsPage() {
 
       {profile && (
         <>
-          <div
-            className="ds-card"
-            style={{ padding: 14, display: 'flex', alignItems: 'center', gap: 12, marginBottom: 10 }}
-          >
-            <div
-              className="ds-mono"
-              style={{
-                width: 40,
-                height: 40,
-                borderRadius: 11,
-                background: 'var(--red)',
-                color: '#fff',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontSize: 15,
-                flex: 'none',
-              }}
-            >
-              {initials(profile.displayName)}
-            </div>
-            <div style={{ flex: 1 }}>
-              <div style={{ fontSize: 15, fontWeight: 500 }}>{profile.displayName}</div>
-              <div style={{ fontSize: 12, color: 'var(--dim2)', marginTop: 1 }}>
-                {profile.email ?? (profile.isGuest ? 'Guest player' : '')}
+          <div className="ds-card" style={{ padding: 14, marginBottom: 10 }}>
+            {editingName ? (
+              <form onSubmit={handleSaveName} style={{ display: 'flex', gap: 8 }}>
+                <div style={{ flex: 1 }}>
+                  <TextField
+                    autoFocus
+                    value={nameDraft}
+                    onChange={(e) => setNameDraft(e.target.value)}
+                    placeholder="Name"
+                  />
+                </div>
+                <Button type="submit" variant="secondary" disabled={busy} style={{ width: 'auto', padding: '0 16px' }}>
+                  Save
+                </Button>
+                <Button
+                  type="button"
+                  variant="destructive"
+                  onClick={() => setEditingName(false)}
+                  style={{ width: 'auto' }}
+                >
+                  Cancel
+                </Button>
+              </form>
+            ) : (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                <div
+                  className="ds-mono"
+                  style={{
+                    width: 40,
+                    height: 40,
+                    borderRadius: 11,
+                    background: 'var(--red)',
+                    color: '#fff',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontSize: 15,
+                    flex: 'none',
+                  }}
+                >
+                  {initials(profile.displayName)}
+                </div>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: 15, fontWeight: 500 }}>{profile.displayName}</div>
+                  <div style={{ fontSize: 12, color: 'var(--dim2)', marginTop: 1 }}>
+                    {profile.email ?? (profile.isGuest ? 'Guest player' : '')}
+                  </div>
+                </div>
+                <div
+                  className="ds-mono"
+                  style={{ fontSize: 10, letterSpacing: '.1em', textTransform: 'uppercase', color: 'var(--dim2)', marginRight: 6 }}
+                >
+                  {profile.playerCode}
+                </div>
+                <button
+                  className="ds-tap"
+                  onClick={() => {
+                    setNameDraft(profile.displayName);
+                    setEditingName(true);
+                  }}
+                  aria-label="Edit name"
+                  style={{
+                    width: 32,
+                    height: 32,
+                    borderRadius: '50%',
+                    border: '1px solid var(--line)',
+                    fontSize: 13,
+                    flex: 'none',
+                  }}
+                >
+                  ✎
+                </button>
               </div>
-            </div>
-            <div
-              className="ds-mono"
-              style={{ fontSize: 10, letterSpacing: '.1em', textTransform: 'uppercase', color: 'var(--dim2)' }}
-            >
-              {profile.playerCode}
-            </div>
+            )}
           </div>
 
           {profile.isGuest && !showUpgrade && (
@@ -190,31 +259,39 @@ export default function SettingsPage() {
           )}
 
           {profile.isGuest && showUpgrade && (
-            <form
-              onSubmit={handleUpgrade}
-              className="ds-card"
-              style={{ padding: 14, display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 10 }}
-            >
+            <div className="ds-card" style={{ padding: 14, display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 10 }}>
               <div style={{ fontSize: 12.5, color: 'var(--dim)', marginBottom: 4 }}>
                 Keeps this device&apos;s game history under a real account.
               </div>
-              <TextField placeholder="Name" value={name} onChange={(e) => setName(e.target.value)} />
-              <TextField
-                placeholder="Email"
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-              />
-              <TextField
-                placeholder="Password"
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-              />
-              <Button type="submit" variant="primary" disabled={busy}>
-                Save as an account
+              <Button variant="secondary" onClick={handleGoogleUpgrade} disabled={busy}>
+                Continue with Google
               </Button>
-            </form>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, margin: '2px 0' }}>
+                <div style={{ flex: 1, height: 1, background: 'var(--line)' }} />
+                <span className="ds-dim2" style={{ fontSize: 11 }}>
+                  or
+                </span>
+                <div style={{ flex: 1, height: 1, background: 'var(--line)' }} />
+              </div>
+              <form onSubmit={handleUpgrade} style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                <TextField placeholder="Name" value={name} onChange={(e) => setName(e.target.value)} />
+                <TextField
+                  placeholder="Email"
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                />
+                <TextField
+                  placeholder="Password"
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                />
+                <Button type="submit" variant="primary" disabled={busy}>
+                  Save as an account
+                </Button>
+              </form>
+            </div>
           )}
         </>
       )}

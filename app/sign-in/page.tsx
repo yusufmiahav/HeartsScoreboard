@@ -14,6 +14,7 @@ export default function SignInPage() {
   const router = useRouter();
   const [mode, setMode] = useState<Mode>('signin');
   const [name, setName] = useState('');
+  const [guestName, setGuestName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [note, setNote] = useState<string | null>(null);
@@ -79,7 +80,8 @@ export default function SignInPage() {
   async function handleGuest() {
     setBusy(true);
     setNote(null);
-    const { error } = await continueAsGuest();
+    const fallback = `Guest ${Math.floor(1000 + Math.random() * 9000)}`;
+    const { error } = await continueAsGuest(guestName.trim() || fallback);
     setBusy(false);
     if (error) {
       setNote(error);
@@ -175,7 +177,13 @@ export default function SignInPage() {
         </div>
       </div>
 
-      <div className="ds-body" style={{ paddingTop: 0, display: 'flex', flexDirection: 'column', gap: 16 }}>
+      <div className="ds-body" style={{ paddingTop: 0, display: 'flex', flexDirection: 'column', gap: 10 }}>
+        <TextField
+          placeholder="Your name (optional)"
+          value={guestName}
+          onChange={(e) => setGuestName(e.target.value)}
+          autoComplete="name"
+        />
         <Button variant="dashed" onClick={handleGuest} disabled={busy}>
           Keep score as a guest
         </Button>

@@ -6,7 +6,7 @@ import { useStore } from '@/lib/store';
 import { useAuth } from '@/lib/auth';
 import { passRecipientSeat, passingDirectionForHand } from '@/lib/engine';
 import { ScreenHeader } from '@/components/ScreenHeader';
-import { Button } from '@/components/ui';
+import { Button, GamesHomeButton } from '@/components/ui';
 
 function shuffled<T>(arr: T[]): T[] {
   const a = [...arr];
@@ -71,9 +71,22 @@ export default function SeatingPage() {
       <ScreenHeader
         title="Seating"
         onBack={() => {
+          // router.back() (not push) so this pops the real history entry
+          // instead of stacking a duplicate /games/new on top of it — a
+          // pushed "back" traps New Game's own back button bouncing
+          // between the two pages instead of ever reaching Home.
+          leavingRef.current = true;
           setDraftGameSetup({ ...draft, playerNames: order });
-          router.push('/games/new');
+          router.back();
         }}
+        actions={
+          <GamesHomeButton
+            beforeNavigate={() => {
+              leavingRef.current = true;
+              setDraftGameSetup({ ...draft, playerNames: order });
+            }}
+          />
+        }
       />
       <div className="ds-body">
         <div style={{ fontSize: 12.5, color: 'var(--dim)', marginBottom: 20, lineHeight: 1.5 }}>

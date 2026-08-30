@@ -12,7 +12,7 @@ import {
   type PassDirection,
 } from '@/lib/engine';
 import { ScreenHeader } from '@/components/ScreenHeader';
-import { Button, Chip } from '@/components/ui';
+import { Button, Chip, GamesHomeButton } from '@/components/ui';
 
 const DIRECTIONS: { key: PassDirection; label: string }[] = [
   { key: 'left', label: 'LEFT' },
@@ -51,7 +51,7 @@ export default function HandStartPage({ params }: { params: Promise<{ id: string
 
   return (
     <div className="ds-screen">
-      <ScreenHeader title={`Hand ${handNumber}`} />
+      <ScreenHeader title={`Hand ${handNumber}`} actions={<GamesHomeButton />} />
       <div className="ds-body">
         <div style={{ position: 'relative', height: 260, margin: '10px 0 24px' }}>
           <div

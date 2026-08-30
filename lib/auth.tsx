@@ -41,8 +41,10 @@ interface AuthContextValue {
     displayName: string
   ) => Promise<Result & { needsConfirmation: boolean }>;
   signInWithGoogle: () => Promise<Result>;
+  /** Links a Google identity to the current (typically anonymous) user in place — same user id, no lost history. */
+  linkGoogle: () => Promise<Result>;
   signInWithMagicLink: (email: string) => Promise<Result>;
-  continueAsGuest: () => Promise<Result>;
+  continueAsGuest: (displayName?: string) => Promise<Result>;
   upgradeGuest: (email: string, password: string, displayName: string) => Promise<Result>;
   signOut: () => Promise<void>;
   updateDisplayName: (name: string) => Promise<Result>;
@@ -155,6 +157,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return { error: error?.message ?? null };
   }, [client, notConfigured]);
 
+  const linkGoogle = useCallback<AuthContextValue['linkGoogle']>(async () => {
+    const supabase = client;
+    if (!supabase) return notConfigured();
+    // linkIdentity (not signInWithOAuth) keeps the current user's id — the
+    // point of a guest upgrade is not losing the history tied to it.
+    const { error } = await supabase.auth.linkIdentity({
+      provider: 'google',
+      options: { redirectTo: `${window.location.origin}/auth/callback` },
+    });
+    return { error: error?.message ?? null };
+  }, [client, notConfigured]);
+
   const signInWithMagicLink = useCallback<AuthContextValue['signInWithMagicLink']>(async (email) => {
     const supabase = client;
     if (!supabase) return notConfigured();
@@ -165,12 +179,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return { error: error?.message ?? null };
   }, [client, notConfigured]);
 
-  const continueAsGuest = useCallback<AuthContextValue['continueAsGuest']>(async () => {
-    const supabase = client;
-    if (!supabase) return notConfigured();
-    const { error } = await supabase.auth.signInAnonymously();
-    return { error: error?.message ?? null };
-  }, [client, notConfigured]);
+  const continueAsGuest = useCallback<AuthContextValue['continueAsGuest']>(
+    async (displayName) => {
+      const supabase = client;
+      if (!supabase) return notConfigured();
+      const { error } = await supabase.auth.signInAnonymously(
+        displayName?.trim() ? { options: { data: { full_name: displayName.trim() } } } : undefined
+      );
+      return { error: error?.message ?? null };
+    },
+    [client, notConfigured]
+  );
 
   const upgradeGuest = useCallback<AuthContextValue['upgradeGuest']>(
     async (email, password, displayName) => {
@@ -222,6 +241,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       signInWithPassword,
       signUpWithPassword,
       signInWithGoogle,
+      linkGoogle,
       signInWithMagicLink,
       continueAsGuest,
       upgradeGuest,
@@ -236,6 +256,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       signInWithPassword,
       signUpWithPassword,
       signInWithGoogle,
+      linkGoogle,
       signInWithMagicLink,
       continueAsGuest,
       upgradeGuest,

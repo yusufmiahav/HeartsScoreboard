@@ -45,7 +45,7 @@ export default function GamesPage() {
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
               {finished.map((g) => (
-                <FinishedGameRow key={g.id} game={g} />
+                <FinishedGameRow key={g.id} game={g} onDelete={deleteGame} />
               ))}
             </div>
           </div>

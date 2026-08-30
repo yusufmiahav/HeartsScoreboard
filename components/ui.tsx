@@ -1,6 +1,7 @@
 'use client';
 
 import type { ButtonHTMLAttributes, InputHTMLAttributes, ReactNode } from 'react';
+import { useRouter } from 'next/navigation';
 
 export function ProfileErrorNotice({ message }: { message: string }) {
   return (
@@ -41,6 +42,22 @@ export function IconButton({
 }: ButtonHTMLAttributes<HTMLButtonElement> & { header?: boolean }) {
   return (
     <button className={`ds-icon-btn ${header ? 'ds-icon-btn--header' : ''} ${className}`} {...props} />
+  );
+}
+
+/** Jumps straight to the Games tab from mid-game screens that only otherwise offer a one-step-back chevron. */
+export function GamesHomeButton({ beforeNavigate }: { beforeNavigate?: () => void }) {
+  const router = useRouter();
+  return (
+    <IconButton
+      aria-label="Go to games list"
+      onClick={() => {
+        beforeNavigate?.();
+        router.push('/games');
+      }}
+    >
+      ⌂
+    </IconButton>
   );
 }
 

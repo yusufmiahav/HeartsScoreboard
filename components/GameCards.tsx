@@ -131,40 +131,65 @@ export function PausedGameCard({
   );
 }
 
-export function FinishedGameRow({ game }: { game: Game }) {
+export function FinishedGameRow({ game, onDelete }: { game: Game; onDelete: (id: string) => void }) {
   const router = useRouter();
   const rows = standings(game);
-  const winner = game.players.find((p) => p.id === game.winnerId);
-  const winnerTotal = rows.find((r) => r.player.id === game.winnerId)?.total;
+  const winnerList = game.players.filter((p) => game.winnerIds.includes(p.id)).map((p) => p.name);
+  const winnerNames = winnerList.length > 2 ? `${winnerList.length} tied` : winnerList.join(' & ');
+  const winnerTotal = rows.find((r) => game.winnerIds.includes(r.player.id))?.total;
   return (
-    <button
-      className="ds-tap"
+    <div
       style={{
-        width: '100%',
-        justifyContent: 'flex-start',
-        textAlign: 'left',
+        display: 'flex',
+        alignItems: 'stretch',
+        gap: 8,
         background: 'var(--sf)',
         border: '1px solid var(--line)',
         borderRadius: 14,
-        padding: '14px 16px',
-        flexDirection: 'column',
-        alignItems: 'stretch',
-        gap: 4,
       }}
-      onClick={() => router.push(`/games/${game.id}/over`)}
     >
-      <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
-        <span style={{ fontSize: 14.5, fontWeight: 600 }}>
-          {game.status === 'abandoned' ? 'Abandoned' : `${winner?.name ?? '—'} won · ${winnerTotal ?? '—'}`}
-        </span>
-        <span style={{ marginLeft: 'auto', fontSize: 11.5, color: 'var(--dim2)' }}>
-          {game.finishedAt ? formatDate(game.finishedAt) : ''}
-        </span>
+      <button
+        className="ds-tap"
+        style={{
+          flex: 1,
+          minWidth: 0,
+          justifyContent: 'flex-start',
+          textAlign: 'left',
+          background: 'none',
+          border: 'none',
+          borderRadius: 14,
+          padding: '14px 16px',
+          flexDirection: 'column',
+          alignItems: 'stretch',
+          gap: 4,
+        }}
+        onClick={() => router.push(`/games/${game.id}/over`)}
+      >
+        <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
+          <span style={{ fontSize: 14.5, fontWeight: 600 }}>
+            {game.status === 'abandoned' ? 'Abandoned' : `${winnerNames || '—'} won · ${winnerTotal ?? '—'}`}
+          </span>
+          <span style={{ marginLeft: 'auto', fontSize: 11.5, color: 'var(--dim2)' }}>
+            {game.finishedAt ? formatDate(game.finishedAt) : ''}
+          </span>
+        </div>
+        <div style={{ fontSize: 12, color: 'var(--dim)' }}>{game.players.map((p) => p.name).join(', ')}</div>
+        <div style={{ fontSize: 11.5, color: 'var(--dim2)' }}>
+          {game.hands.length} hands · to {game.settings.targetScore}
+        </div>
+      </button>
+      <div style={{ display: 'flex', alignItems: 'center', paddingRight: 12 }}>
+        <button
+          className="ds-icon-btn"
+          aria-label="Delete game"
+          onClick={() => {
+            if (confirm("Delete this game? This can't be undone, and it will also remove it from your stats."))
+              onDelete(game.id);
+          }}
+        >
+          ×
+        </button>
       </div>
-      <div style={{ fontSize: 12, color: 'var(--dim)' }}>{game.players.map((p) => p.name).join(', ')}</div>
-      <div style={{ fontSize: 11.5, color: 'var(--dim2)' }}>
-        {game.hands.length} hands · to {game.settings.targetScore}
-      </div>
-    </button>
+    </div>
   );
 }

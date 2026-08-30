@@ -20,8 +20,15 @@ export function Celebration({
   onContinue: () => void;
 }) {
   const rows = standings(game);
-  const winner = game.players.find((p) => p.id === game.winnerId);
-  const winnerRow = rows.find((r) => r.player.id === game.winnerId);
+  const winnerList = game.players.filter((p) => game.winnerIds.includes(p.id)).map((p) => p.name);
+  const winnerNames =
+    winnerList.length <= 1
+      ? (winnerList[0] ?? '')
+      : winnerList.length === 2
+        ? `${winnerList[0]} & ${winnerList[1]}`
+        : `${winnerList.slice(0, -1).join(', ')} & ${winnerList[winnerList.length - 1]}`;
+  const winnerTotal = rows.find((r) => game.winnerIds.includes(r.player.id))?.total;
+  const hitPlayer = rows[rows.length - 1]?.player;
 
   return (
     <div className={styles.stage}>
@@ -50,14 +57,14 @@ export function Celebration({
 
       <div className={styles.reveal}>
         <div className={`ds-eyebrow ${styles.name}`}>
-          {winner?.name} hit {game.settings.targetScore} · lowest score wins
+          {hitPlayer?.name} hit {game.settings.targetScore} · lowest score wins
         </div>
-        <div className={`ds-h1 ${styles.name}`} style={{ fontSize: 52, marginTop: 8 }}>
-          {winner?.name}
+        <div className={`ds-h1 ${styles.name}`} style={{ fontSize: winnerList.length > 1 ? 38 : 52, marginTop: 8 }}>
+          {winnerNames}
         </div>
         <div className={styles.rule} />
         <div className={`ds-mono ${styles.score}`} style={{ fontSize: 32, marginTop: 16 }}>
-          <span className="ds-accent">{winnerRow?.total}</span>{' '}
+          <span className="ds-accent">{winnerTotal}</span>{' '}
           <span style={{ fontSize: 13, color: 'var(--dim2)' }}>POINTS · {game.hands.length} HANDS</span>
         </div>
       </div>
