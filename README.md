@@ -160,7 +160,6 @@ end, dealer rotation, and the left/right/across/hold passing cycle.
   table, RLS scoped to the four players, Realtime for live updates) is the natural next step and
   would also unlock cross-device pause/resume and real head-to-head stats between friends.
 - Full pause/resume sheet with multi-device sync and half-entered-hand recovery
-- Player QR add-by-scan (add-by-typed-ID works today)
 - Dispute/challenge voting flow
 - Drag-to-seat ring and the cut/pick first-dealer mini-game (seating page uses reorder
   buttons + a plain dealer picker instead — same outcome, simpler interaction)

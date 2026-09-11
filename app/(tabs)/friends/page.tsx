@@ -4,7 +4,9 @@ import { useState } from 'react';
 import { useAuth } from '@/lib/auth';
 import { useFriends } from '@/lib/friends';
 import { initials } from '@/lib/format';
-import { Button, TextField } from '@/components/ui';
+import { Button, Sheet, TextField } from '@/components/ui';
+import { PlayerQrCode } from '@/components/QrCode';
+import { QrScanner } from '@/components/QrScanner';
 import type { Profile } from '@/lib/types';
 
 export default function FriendsPage() {
@@ -14,6 +16,8 @@ export default function FriendsPage() {
   const [code, setCode] = useState('');
   const [note, setNote] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [showQr, setShowQr] = useState(false);
+  const [showScanner, setShowScanner] = useState(false);
 
   async function handleSend(e: React.FormEvent) {
     e.preventDefault();
@@ -26,6 +30,14 @@ export default function FriendsPage() {
       setNote(`Request sent to ${code.trim().toUpperCase()}.`);
       setCode('');
     }
+  }
+
+  async function handleScanned(text: string) {
+    setShowScanner(false);
+    setBusy(true);
+    const { error: sendError } = await sendRequest(text);
+    setBusy(false);
+    setNote(sendError ?? `Request sent to ${text.trim().toUpperCase()}.`);
   }
 
   async function handleCopyId() {
@@ -67,7 +79,7 @@ export default function FriendsPage() {
           <div className="ds-eyebrow" style={{ marginBottom: 8 }}>
             Your player ID
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 10 }}>
             <div className="ds-mono" style={{ fontSize: 18, letterSpacing: '.08em', flex: 1 }}>
               {profile.playerCode}
             </div>
@@ -75,6 +87,9 @@ export default function FriendsPage() {
               Copy ID
             </Button>
           </div>
+          <Button variant="dashed" onClick={() => setShowQr(true)}>
+            Show my QR code
+          </Button>
         </div>
       )}
 
@@ -91,6 +106,9 @@ export default function FriendsPage() {
           Add
         </Button>
       </form>
+      <Button variant="dashed" onClick={() => setShowScanner(true)} disabled={!configured || busy} style={{ marginBottom: 8 }}>
+        Scan a friend&apos;s QR code
+      </Button>
       {note && <div style={{ fontSize: 12, color: 'var(--dim)', marginBottom: 16 }}>{note}</div>}
       {error && <div style={{ fontSize: 12, color: 'var(--red)', marginBottom: 16 }}>{error}</div>}
 
@@ -155,6 +173,28 @@ export default function FriendsPage() {
           </RequestRow>
         ))}
       </Section>
+
+      {showQr && profile && (
+        <Sheet onClose={() => setShowQr(false)}>
+          <div className="ds-h1" style={{ fontSize: 24, marginBottom: 12, textAlign: 'center' }}>
+            Your QR code
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 14 }}>
+            <PlayerQrCode value={profile.playerCode} />
+          </div>
+          <div
+            className="ds-mono"
+            style={{ fontSize: 15, letterSpacing: '.08em', textAlign: 'center', marginBottom: 18 }}
+          >
+            {profile.playerCode}
+          </div>
+          <Button variant="secondary" onClick={() => setShowQr(false)}>
+            Done
+          </Button>
+        </Sheet>
+      )}
+
+      {showScanner && <QrScanner onScan={handleScanned} onClose={() => setShowScanner(false)} />}
     </div>
   );
 }
