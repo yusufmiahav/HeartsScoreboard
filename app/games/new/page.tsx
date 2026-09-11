@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useStore } from '@/lib/store';
 import { useAuth } from '@/lib/auth';
+import { useFriends } from '@/lib/friends';
 import { ScreenHeader } from '@/components/ScreenHeader';
 import { Button, Chip, GamesHomeButton, Toggle } from '@/components/ui';
 import type { MoonRule } from '@/lib/types';
@@ -13,6 +14,7 @@ const PRESETS = [50, 100, 150, 200];
 export default function NewGamePage() {
   const { state, setDraftGameSetup } = useStore();
   const { profile } = useAuth();
+  const { configured, friends } = useFriends();
   const router = useRouter();
   const existingDraft = state.draftGameSetup;
   const [names, setNames] = useState(existingDraft?.playerNames ?? ['', '', '']);
@@ -23,6 +25,18 @@ export default function NewGamePage() {
   function updateName(i: number, v: string) {
     setNames((prev) => prev.map((n, idx) => (idx === i ? v : n)));
   }
+
+  function addFriendName(name: string) {
+    setNames((prev) => {
+      const emptyIndex = prev.findIndex((n) => !n.trim());
+      if (emptyIndex === -1) return prev;
+      return prev.map((n, idx) => (idx === emptyIndex ? name : n));
+    });
+  }
+
+  const availableFriends = friends.filter(
+    (r) => !names.some((n) => n.trim().toLowerCase() === r.otherProfile.displayName.trim().toLowerCase())
+  );
 
   function handleContinue() {
     setDraftGameSetup({ settings: { targetScore: target, jackOfDiamonds: jack, moonRule }, playerNames: names });
@@ -39,7 +53,26 @@ export default function NewGamePage() {
           {state.knownPlayers.map((p) => (
             <option key={p.id} value={p.name} />
           ))}
+          {friends.map((r) => (
+            <option key={r.otherProfile.id} value={r.otherProfile.displayName} />
+          ))}
         </datalist>
+
+        {configured && availableFriends.length > 0 && (
+          <>
+            <div className="ds-eyebrow" style={{ marginBottom: 10 }}>
+              Add from friends
+            </div>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 20 }}>
+              {availableFriends.map((r) => (
+                <Chip key={r.id} onClick={() => addFriendName(r.otherProfile.displayName)}>
+                  {r.otherProfile.displayName}
+                </Chip>
+              ))}
+            </div>
+          </>
+        )}
+
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 20 }}>
           <PlayerRow index={1} name={profile?.displayName ?? 'You'} note="you" locked />
           {names.map((n, i) => (
